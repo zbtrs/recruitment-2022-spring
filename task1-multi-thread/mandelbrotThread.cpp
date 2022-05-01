@@ -95,7 +95,6 @@ void mandelbrotThread(
         int maxIterations, int output[])
 {
     static constexpr int MAX_THREADS = 32;
-
     if (numThreads > MAX_THREADS)
     {
         fprintf(stderr, "Error: Max allowed threads is %d\n", MAX_THREADS);

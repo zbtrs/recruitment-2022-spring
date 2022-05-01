@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
     //
     // Run the threaded version
     //
-
+    numThreads = 8;
     double minThread = 1e30;
     for (int i = 0; i < 5; ++i) {
       memset(output_thread, 0, width * height * sizeof(int));
