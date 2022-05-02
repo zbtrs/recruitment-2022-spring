@@ -249,7 +249,42 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
   // Your solution should work for any value of
   // N and VECTOR_WIDTH, not just when VECTOR_WIDTH divides N
   //
-  
+  //_cs149_vload_float
+  //_cs149_vstore_float
+    int i;
+    __cs149_vec_float source;
+    __cs149_vec_float result;
+    __cs149_vec_float Inf;
+    __cs149_vec_int power,Zero,One;
+    __cs149_mask maskAll,isAboveOne,isAboveInf;
+    maskAll = _cs149_init_ones();
+    _cs149_vset_int(Zero,0,maskAll);
+    _cs149_vset_int(One,1,maskAll);
+    _cs149_vset_float(Inf,9.999999f,maskAll);
+    for (i = 0; i + VECTOR_WIDTH <= N; i += VECTOR_WIDTH) {
+        _cs149_vload_float(source,values + i,maskAll);
+        _cs149_vload_int(power,exponents + i,maskAll);  //先初始化
+        isAboveOne = _cs149_init_ones(0);
+        isAboveInf = _cs149_init_ones(0);
+        _cs149_vset_float(result,1.f,maskAll);
+        _cs149_vgt_int(isAboveOne,power,Zero,maskAll);  //看有哪些需要运算
+        _cs149_vmove_float(result,source,isAboveOne);
+        _cs149_vsub_int(power,power,One,isAboveOne);
+        _cs149_vgt_int(isAboveOne,power,Zero,maskAll);  //看有哪些循环
+
+        while (_cs149_cntbits(isAboveOne) > 0) {
+            _cs149_vmult_float(result,result,source,isAboveOne);
+            _cs149_vsub_int(power,power,One,isAboveOne);
+            _cs149_vgt_int(isAboveOne,power,Zero,maskAll);
+        }
+        _cs149_vgt_float(isAboveInf,result,Inf,maskAll);
+        _cs149_vset_float(result,9.999999f,isAboveInf);
+        _cs149_vstore_float(output + i,result,maskAll);
+    }
+
+    if (i != N)
+        clampedExpSerial(values + i,exponents + i,output + i,N - i);
+
 }
 
 // returns the sum of all elements in values
