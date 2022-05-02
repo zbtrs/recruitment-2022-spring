@@ -1,5 +1,5 @@
 // Define vector unit width here
-#define VECTOR_WIDTH 1919
+#define VECTOR_WIDTH 16
 
 #ifndef CS149INTRIN_H_
 #define CS149INTRIN_H_

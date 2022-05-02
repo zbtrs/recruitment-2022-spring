@@ -272,17 +272,17 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
         _cs149_vsub_int(power,power,One,isAboveOne);
         _cs149_vgt_int(isAboveOne,power,Zero,maskAll);  //看有哪些循环
 
-        while (_cs149_cntbits(isAboveOne) > 0) {
+        while (_cs149_cntbits(isAboveOne) > 0) {  //如果还有次数大于1的
             _cs149_vmult_float(result,result,source,isAboveOne);
             _cs149_vsub_int(power,power,One,isAboveOne);
             _cs149_vgt_int(isAboveOne,power,Zero,maskAll);
         }
         _cs149_vgt_float(isAboveInf,result,Inf,maskAll);
-        _cs149_vset_float(result,9.999999f,isAboveInf);
+        _cs149_vset_float(result,9.999999f,isAboveInf);  //如果超出了上限
         _cs149_vstore_float(output + i,result,maskAll);
     }
 
-    if (i != N)
+    if (i != N)  //剩下多的部分直接一个个暴力
         clampedExpSerial(values + i,exponents + i,output + i,N - i);
 
 }
@@ -305,11 +305,21 @@ float arraySumVector(float* values, int N) {
   //
   // CS149 STUDENTS TODO: Implement your vectorized version of arraySumSerial here
   //
-  
-  for (int i=0; i<N; i+=VECTOR_WIDTH) {
 
-  }
-
-  return 0.0;
+    __cs149_mask maskAll = _cs149_init_ones();
+    __cs149_vec_float result = _cs149_vset_float(0.f);
+    __cs149_vec_float temp;
+    for (int i=0; i<N; i+=VECTOR_WIDTH) {  //先把一部分值加起来
+        _cs149_vload_float(temp, values + i, maskAll);
+        _cs149_vadd_float(result, result, temp, maskAll);
+    }
+    int num = VECTOR_WIDTH;
+    while (num /= 2) {
+        _cs149_hadd_float(result, result);
+        _cs149_interleave_float(result, result);
+    }
+    float output[VECTOR_WIDTH];
+    _cs149_vstore_float(output, result, maskAll);
+    return output[0];
 }
 
