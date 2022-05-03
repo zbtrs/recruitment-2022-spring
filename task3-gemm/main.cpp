@@ -25,10 +25,36 @@ const int scale[] = {256, 512, 1024, 2048};
 const string data_path("./data/");
 
 void Gemm(const int &size, vec &a, vec &b, vec &c) {
-    for(int i = 0; i < size; i++)
-        for(int j = 0; j < size; j++)
-            for(int k = 0; k < size; k++)
-                c[i*size+j] += a[i*size+k] * b[k*size+j];
+    int N = 16;
+    int T = size / N;
+    int k = 0,i = 0,j = 0;
+    for (int kt = 0; kt < N; ++kt) {
+        for (int it = 0; it < N; ++it) {
+            for (int jt = 0; jt < N; ++jt) {
+                int ktt = kt * T,itt = it * T,jtt = jt * T;
+                for (k = ktt; k < ktt + T; ++k) {
+                    int num_k = k * size;
+                    for (i = itt; i < itt + T; ++i) {
+                        int num_i = i * size;
+                        int r = a[num_i + k];
+                        for (j = jtt; j < jtt + T; ++j)
+                            c[num_i + j] += r * b[num_k + j];
+                    }
+                }
+            }
+        }
+    }
+
+    for(;k < size; ++k) {
+        int num_k = k * size;
+        for(; i < size; ++i) {
+            int num_i = i * size;
+            int r = a[num_i + k];
+            for(;j < size; ++j) {
+                c[num_i + j] += r * b[num_k + j];
+            }
+        }
+    }
 }
 
 void CheckResult(const vec &c, const string &result_path) {
