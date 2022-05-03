@@ -24,7 +24,80 @@ using vec = vector<int>;
 const int scale[] = {256, 512, 1024, 2048};
 const string data_path("./data/");
 
+int A[2049 * 2049],B[2049 * 2049],C[2049 * 2049];
+
+void print(const int &N,vec &c) {
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            printf("%d ",c[i * N + j]);
+        }
+        printf("\n");
+    }
+}
+
 void Gemm(const int &size, vec &a, vec &b, vec &c) {
+    int len = a.size();
+    for (int i = 0; i < len; ++i) {
+        A[i] = a[i];
+        B[i] = b[i];
+        C[i] = 0;
+    }
+
+
+    const int N = size;
+    //printf("%d\n",N);
+    for (int i = 0; i < N; i += 4)
+        for (int j = 0; j < N; j += 4)
+        {
+            register int c00 = 0,c01 = 0,c02 = 0,c03 = 0,c10 = 0,c11 = 0,c12 = 0,c13 = 0,c20 = 0,c21 = 0,c22 = 0,c23 = 0,c30 = 0,c31 = 0,c32 = 0,c33 = 0;
+            register int a0i,a1i,a2i,a3i;
+            register int bi0,bi1,bi2,bi3;
+            int *a0i_p,*a1i_p,*a2i_p,*a3i_p;
+            a0i_p = A + i * N;
+            a1i_p = A + (i + 1) * N;
+            a2i_p = A + (i + 2) * N;
+            a3i_p = A + (i + 3) * N;
+            for (int k = 0; k < N; ++k) {
+                bi0 = B[k * N + j];
+                bi1 = B[k * N + j + 1];
+                bi2 = B[k * N + j + 2];
+                bi3 = B[k * N + j + 3];
+                a0i = *a0i_p++;
+                a1i = *a1i_p++;
+                a2i = *a2i_p++;
+                a3i = *a3i_p++;
+
+                c00 += a0i * bi0;
+                c01 += a0i * bi1;
+                c02 += a0i * bi2;
+                c03 += a0i * bi3;
+
+                c10 += a1i * bi0;
+                c11 += a1i * bi1;
+                c12 += a1i * bi2;
+                c13 += a1i * bi3;
+
+                c20 += a2i * bi0;
+                c21 += a2i * bi1;
+                c22 += a2i * bi2;
+                c23 += a2i * bi3;
+
+                c30 += a3i * bi0;
+                c31 += a3i * bi1;
+                c32 += a3i * bi2;
+                c33 += a3i * bi3;
+            }
+            C[i * N + j] += c00;C[i * N + j + 1] += c01;C[i * N + j + 2] += c02;C[i * N + j + 3] += c03;
+            C[(i + 1) * N + j] += c10;C[(i + 1) * N + j + 1] += c11;C[(i + 1) * N + j + 2] += c12;C[(i + 1) * N + j + 3] += c13;
+            C[(i + 2) * N + j] += c20;C[(i + 2) * N + j + 1] += c21;C[(i + 2) * N + j + 2] += c22;C[(i + 2) * N + j + 3] += c23;
+            C[(i + 3) * N + j] += c30;C[(i + 3) * N + j + 1] += c31;C[(i + 3) * N + j + 2] += c32;C[(i + 3) * N + j + 3] += c33;
+        }
+    for (int i = 0; i < len; ++i)
+        c[i] = C[i];
+
+    //print(size,c);
+    //printf("%d\n",c[0]);
+    /*
     int N = 32;
     int T = size / N;
     int k = 0,i = 0,j = 0;
@@ -55,6 +128,7 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
             }
         }
     }
+     */
 }
 
 void CheckResult(const vec &c, const string &result_path) {
@@ -64,6 +138,7 @@ void CheckResult(const vec &c, const string &result_path) {
     for(int i = 0; i < nelems; i++) {
         file_result >> res_i;
         assert(c[i] == res_i);
+
     }
     file_result.close();
 }
@@ -99,11 +174,6 @@ void Benchmark(const int &size) {
 }
 
 int main() {
-#pragma omp parallel
-    {
-        int id = omp_get_thread_num();
-        printf("%d\n",id);
-    }
 
 
     for(auto size: scale) {
