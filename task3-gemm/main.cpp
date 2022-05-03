@@ -25,17 +25,17 @@ const int scale[] = {256, 512, 1024, 2048};
 const string data_path("./data/");
 
 void Gemm(const int &size, vec &a, vec &b, vec &c) {
-    int N = 16;
+    int N = 32;
     int T = size / N;
     int k = 0,i = 0,j = 0;
-    for (int kt = 0; kt < N; ++kt) {
-        for (int it = 0; it < N; ++it) {
+    for (int it = 0; it < N; ++it) {
+        for (int kt = 0; kt < N; ++kt) {
             for (int jt = 0; jt < N; ++jt) {
                 int ktt = kt * T,itt = it * T,jtt = jt * T;
-                for (k = ktt; k < ktt + T; ++k) {
-                    int num_k = k * size;
-                    for (i = itt; i < itt + T; ++i) {
-                        int num_i = i * size;
+                for (i = itt; i < itt + T; ++i) {
+                    int num_i = i * size;
+                    for (k = ktt; k < ktt + T; ++k) {
+                        int num_k = k * size;
                         int r = a[num_i + k];
                         for (j = jtt; j < jtt + T; ++j)
                             c[num_i + j] += r * b[num_k + j];
@@ -44,11 +44,11 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
             }
         }
     }
-
-    for(;k < size; ++k) {
-        int num_k = k * size;
-        for(; i < size; ++i) {
-            int num_i = i * size;
+//#pragma omp parallel for schedule(dynamic)
+    for(;i < size; ++i) {
+        int num_i = i * size;
+        for(; k < size; ++k) {
+            int num_k = k * size;
             int r = a[num_i + k];
             for(;j < size; ++j) {
                 c[num_i + j] += r * b[num_k + j];
@@ -99,6 +99,13 @@ void Benchmark(const int &size) {
 }
 
 int main() {
+#pragma omp parallel
+    {
+        int id = omp_get_thread_num();
+        printf("%d\n",id);
+    }
+
+
     for(auto size: scale) {
         cout << "Running, dataset: size " << size << endl;
         Benchmark(size);

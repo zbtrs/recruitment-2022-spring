@@ -1,0 +1,13 @@
+kij N=16
+Running, dataset: size 256
+time spent: 63328us
+Passed, dataset: size 256
+
+Running, dataset: size 512
+time spent: 526547us
+Passed, dataset: size 512
+
+Running, dataset: size 1024
+time spent: 3.95537e+06us
+Passed, dataset: size 1024
+
