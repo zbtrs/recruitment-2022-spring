@@ -29,7 +29,7 @@ using vec = vector<int>;
 const int scale[] = {256, 512, 1024, 2048};
 const string data_path("./data/");
 
-int A[2080*2080],B[2080*2080],C[2080*2080];
+int A[2080*2080],B[2080*2080],C[2080*2080],pA[2080*2080],pB[2080*2080],pC[2080*2080];
 
 void print(const int &N,vec &c) {
     for (int i = 0; i < N; ++i) {
@@ -69,6 +69,113 @@ void print4(__m128i a) {
     for (int i = 0; i <= 3; i++)
         cout << A[i] << " ";
     cout << endl;
+}
+
+void packB(int K,int ld,int *B,int *pB) {
+    int *dst = pB;
+    for (int k = 0; k < K; k += 4) {
+        *(dst + 0) = *(B + k + 0 + 0 * ld);
+        *(dst + 1) = *(B + k + 0 + 1 * ld);
+        *(dst + 2) = *(B + k + 0 + 2 * ld);
+        *(dst + 3) = *(B + k + 0 + 3 * ld);
+        *(dst + 4) = *(B + k + 1 + 0 * ld);
+        *(dst + 5) = *(B + k + 1 + 1 * ld);
+        *(dst + 6) = *(B + k + 1 + 2 * ld);
+        *(dst + 7) = *(B + k + 1 + 3 * ld);
+        *(dst + 8) = *(B + k + 2 + 0 * ld);
+        *(dst + 9) = *(B + k + 2 + 1 * ld);
+        *(dst + 10) = *(B + k + 2 + 2 * ld);
+        *(dst + 11) = *(B + k + 2 + 3 * ld);
+        *(dst + 12) = *(B + k + 3 + 0 * ld);
+        *(dst + 13) = *(B + k + 3 + 1 * ld);
+        *(dst + 14) = *(B + k + 3 + 2 * ld);
+        *(dst + 15) = *(B + k + 3 + 3 * ld);
+        dst += 16;
+    }
+}
+
+void packA(int K,int ld,int *A,int *pA) {
+    int *dst = pA;
+    for (int k = 0; k < K; k += 4) {
+        int *a0_k0_p = A + k * ld;
+        int *a0_k1_p = A + (k + 1) * ld;
+        int *a0_k2_p = A + (k + 2) * ld;
+        int *a0_k3_p = A + (k + 3) * ld;
+        *(dst + 0) = *(a0_k0_p + 0);
+        *(dst + 1) = *(a0_k0_p + 1);
+        *(dst + 2) = *(a0_k0_p + 2);
+        *(dst + 3) = *(a0_k0_p + 3);
+        *(dst + 4) = *(a0_k1_p + 0);
+        *(dst + 5) = *(a0_k1_p + 1);
+        *(dst + 6) = *(a0_k1_p + 2);
+        *(dst + 7) = *(a0_k1_p + 3);
+        *(dst + 8) = *(a0_k2_p + 0);
+        *(dst + 9) = *(a0_k2_p + 1);
+        *(dst + 10) = *(a0_k2_p + 2);
+        *(dst + 11) = *(a0_k2_p + 3);
+        *(dst + 12) = *(a0_k3_p + 0);
+        *(dst + 13) = *(a0_k3_p + 1);
+        *(dst + 14) = *(a0_k3_p + 2);
+        *(dst + 15) = *(a0_k3_p + 3);
+        dst += 16;
+    }
+}
+
+void cal(int K,int ld,int *A,int *B,int *C) {
+    __m128i c_c0,c_c1,c_c2,c_c3,a_ri,b_vi0,b_vi1,b_vi2,b_vi3;
+    register int b0;
+    c_c0 = _mm_setzero_si128(),c_c1 = _mm_setzero_si128(),c_c2 = _mm_setzero_si128(),c_c3 = _mm_setzero_si128();
+    int *bptr = B;
+    for (int i = 0; i < K; i++) {
+        a_ri = _mm_loadu_si128((const __m128i*)A + i);
+        b0 = (*bptr);
+        ++bptr;
+        b_vi0 = _mm_set_epi32(b0,b0,b0,b0);
+        b0 = (*bptr);
+        ++bptr;
+        b_vi1 = _mm_set_epi32(b0,b0,b0,b0);
+        b0 = (*bptr);
+        ++bptr;
+        b_vi2 = _mm_set_epi32(b0,b0,b0,b0);
+        b0 = (*bptr);
+        ++bptr;
+        b_vi3 = _mm_set_epi32(b0,b0,b0,b0);
+
+        c_c0 = _mm_add_epi32(c_c0,_mm_mullo_epi32(a_ri,b_vi0));
+        c_c1 = _mm_add_epi32(c_c1,_mm_mullo_epi32(a_ri,b_vi1));
+        c_c2 = _mm_add_epi32(c_c2,_mm_mullo_epi32(a_ri,b_vi2));
+        c_c3 = _mm_add_epi32(c_c3,_mm_mullo_epi32(a_ri,b_vi3));
+        /*
+        temp = bi0_p[0];
+        b_vi0 = _mm_set_epi32(temp,temp,temp,temp);
+        temp1 = bi1_p[0];
+        b_vi1 = _mm_set_epi32(temp1,temp1,temp1,temp1);
+        temp2 = bi2_p[0];
+        b_vi2 = _mm_set_epi32(temp2,temp2,temp2,temp2);
+        temp3 = bi3_p[0];
+        b_vi3 = _mm_set_epi32(temp3,temp3,temp3,temp3);
+         */
+    }
+    __m128i tempp = _mm_loadu_si128((const __m128i*)C);
+    _mm_storeu_si128((__m128i*)C,_mm_add_epi32(c_c0,tempp));
+    tempp = _mm_loadu_si128((const __m128i*)C + (ld >> 2));
+    _mm_storeu_si128((__m128i*)C + (ld >> 2),_mm_add_epi32(c_c1,tempp));
+    tempp = _mm_loadu_si128((const __m128i*)C + ((2 * ld) >> 2));
+    _mm_storeu_si128((__m128i*)C + ((2 * ld) >> 2),_mm_add_epi32(c_c2,tempp));
+    tempp = _mm_loadu_si128((const __m128i*)C + ((3 * ld) >> 2));
+    _mm_storeu_si128((__m128i*)C + ((3 * ld) >> 2),_mm_add_epi32(c_c3,tempp));
+}
+
+void block_packing(int M,int N,int K,int ld,int *A,int *B,int *C,bool should_pack) {
+    for (int j = 0; j < N; j += 4) {
+        if (should_pack)
+         packB(K,ld,B + j * ld,pB + j * K);
+        for (int i = 0; i < M; i += 4) {
+            if (j == 0)
+                packA(K,ld,A + i,pA + i * K);
+            cal(K,ld,pA + i * K,pB + j * K,C + i + j * ld);
+        }
+    }
 }
 
 void do_block(int M,int N,int K,int ld,int *A,int *B,int *C) {
@@ -139,7 +246,8 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
         int K = min(N - k,KC);
         for (int i = 0; i < N; i += MC) {
             int M = min(N - i,MC);
-            do_block(M,N,K,ld,A + i + k * ld,B + k,C + i);
+            //do_block(M,N,K,ld,A + i + k * ld,B + k,C + i);
+            block_packing(M,N,K,ld,A + i + k * ld,B + k,C + i,i == 0);
         }
     }
     for (int i = 0; i < N; i++)
