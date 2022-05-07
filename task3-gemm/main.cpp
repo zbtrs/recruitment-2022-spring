@@ -66,7 +66,7 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
     //先转置
 
     const int N = size;
-    const int ld = N + 16;
+    const int ld = N + 8;
     int len = a.size(),row = 0,coloum = 0;
     for (int i = 0; i < len; i++) {
         C[i] = 0;
