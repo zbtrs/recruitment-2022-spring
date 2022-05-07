@@ -44,6 +44,7 @@ void print2(__m128i a,int *B) {
     int A[10];
     memset(A,0,sizeof(A));
     _mm_storeu_si128((__m128i*)A,a);
+    cout << "sb!! " << endl;
     cout << A[0] << " " << A[1] << " " << A[2] << " " << A[3] << endl;
     cout << B[0] << " " << B[1] << " " << B[2] << " " << B[3] << endl;
 }
@@ -61,6 +62,63 @@ void print3(__m128i a,__m128i b,__m128i c) {
 
 }
 
+void print4(__m128i a) {
+    int A[10];
+    memset(A,0,sizeof(A));
+    _mm_storeu_si128((__m128i*)A,a);
+    for (int i = 0; i <= 3; i++)
+        cout << A[i] << " ";
+    cout << endl;
+}
+
+void do_block(int M,int N,int K,int ld,int *A,int *B,int *C) {
+    for (int i = 0; i < M; i += 4)
+        for (int j = 0; j < N; j += 4) {
+            __m128i c_c0,c_c1,c_c2,c_c3,a_ri,b_vi0,b_vi1,b_vi2,b_vi3;
+            c_c0 = _mm_setzero_si128(),c_c1 = _mm_setzero_si128(),c_c2 = _mm_setzero_si128(),c_c3 = _mm_setzero_si128();
+            int *bi0_p,*bi1_p,*bi2_p,*bi3_p;
+
+            bi0_p = B + j * ld;
+            bi1_p = B + (j + 1) * ld;
+            bi2_p = B + (j + 2) * ld;
+            bi3_p = B + (j + 3) * ld;
+            register int temp,temp1,temp2,temp3;
+            for (int k = 0; k < K; k++) {
+
+                a_ri = _mm_loadu_si128((const __m128i*)A + ((i + k * ld) >> 2));
+                temp = bi0_p[0];
+                b_vi0 = _mm_set_epi32(temp,temp,temp,temp);
+                temp1 = bi1_p[0];
+                b_vi1 = _mm_set_epi32(temp1,temp1,temp1,temp1);
+                temp2 = bi2_p[0];
+                b_vi2 = _mm_set_epi32(temp2,temp2,temp2,temp2);
+                temp3 = bi3_p[0];
+                b_vi3 = _mm_set_epi32(temp3,temp3,temp3,temp3);
+
+                bi0_p++;
+                bi1_p++;
+                bi2_p++;
+                bi3_p++;
+
+                c_c0 = _mm_add_epi32(c_c0,_mm_mullo_epi32(a_ri,b_vi0));
+                c_c1 = _mm_add_epi32(c_c1,_mm_mullo_epi32(a_ri,b_vi1));
+                c_c2 = _mm_add_epi32(c_c2,_mm_mullo_epi32(a_ri,b_vi2));
+                c_c3 = _mm_add_epi32(c_c3,_mm_mullo_epi32(a_ri,b_vi3));
+            }
+
+            //一个块被多次计算，要累加结果
+            __m128i tempp = _mm_loadu_si128((const __m128i*)C + ((i + j * ld) >> 2));
+            _mm_storeu_si128((__m128i*)C + ((i + j * ld) >> 2),_mm_add_epi32(c_c0,tempp));
+            tempp = _mm_loadu_si128((const __m128i*)C + ((i + (j + 1) * ld) >> 2));
+            _mm_storeu_si128((__m128i*)C + ((i + (j + 1) * ld) >> 2),_mm_add_epi32(c_c1,tempp));
+            tempp = _mm_loadu_si128((const __m128i*)C + ((i + (j + 2) * ld) >> 2));
+            _mm_storeu_si128((__m128i*)C + ((i + (j + 2) * ld) >> 2),_mm_add_epi32(c_c2,tempp));
+            tempp = _mm_loadu_si128((const __m128i*)C + ((i + (j + 3) * ld) >> 2));
+            _mm_storeu_si128((__m128i*)C + ((i + (j + 3) * ld) >> 2),_mm_add_epi32(c_c3,tempp));
+
+        }
+}
+
 void Gemm(const int &size, vec &a, vec &b, vec &c) {
 
     //先转置
@@ -76,8 +134,20 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
         B[coloum * ld + row] = b[i];
     }
 
-
-
+    const int KC = 128,MC = 64;
+    for (int k = 0; k < N; k += KC) {
+        int K = min(N - k,KC);
+        for (int i = 0; i < N; i += MC) {
+            int M = min(N - i,MC);
+            do_block(M,N,K,ld,A + i + k * ld,B + k,C + i);
+        }
+    }
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++) {
+            c[i * N + j] = C[j * ld + i];
+        }
+    //print(size,c);
+    /*
     for (int i = 0; i < N; i += 4)
         for (int j = 0; j < N; j += 4) {
             __m128i c_c0,c_c1,c_c2,c_c3,a_ri,b_vi0,b_vi1,b_vi2,b_vi3;
@@ -92,16 +162,16 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
             for (int k = 0; k < N; k++) {
 
                 a_ri = _mm_loadu_si128((const __m128i*)A + ((i + k * ld) >> 2));
-                /*
-                temp = bi0_p[0];
-                b_vi0 = _mm_set1_epi32(temp);
-                temp1 = bi1_p[0];
-                b_vi1 = _mm_set1_epi32(temp1);
-                temp2 = bi2_p[0];
-                b_vi2 = _mm_set1_epi32(temp2);
-                temp3 = bi3_p[0];
-                b_vi3 = _mm_set1_epi32(temp3);
-                 */
+
+                //temp = bi0_p[0];
+                //b_vi0 = _mm_set1_epi32(temp);
+                //temp1 = bi1_p[0];
+                //b_vi1 = _mm_set1_epi32(temp1);
+                //temp2 = bi2_p[0];
+                //b_vi2 = _mm_set1_epi32(temp2);
+                //temp3 = bi3_p[0];
+                //b_vi3 = _mm_set1_epi32(temp3);
+
 
                 temp = bi0_p[0];
                 b_vi0 = _mm_set_epi32(temp,temp,temp,temp);
@@ -112,12 +182,10 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
                 temp3 = bi3_p[0];
                 b_vi3 = _mm_set_epi32(temp3,temp3,temp3,temp3);
 
-                /*
-                b_vi0 = _mm_loadu_si128((const __m128i*)bi0_p);
-                b_vi1 = _mm_loadu_si128((const __m128i*)bi1_p);
-                b_vi2 = _mm_loadu_si128((const __m128i*)bi2_p);
-                b_vi3 = _mm_loadu_si128((const __m128i*)bi3_p);
-                */
+                //b_vi0 = _mm_loadu_si128((const __m128i*)bi0_p);
+                //b_vi1 = _mm_loadu_si128((const __m128i*)bi1_p);
+                //b_vi2 = _mm_loadu_si128((const __m128i*)bi2_p);
+                //b_vi3 = _mm_loadu_si128((const __m128i*)bi3_p);
                 bi0_p++;
                 bi1_p++;
                 bi2_p++;
@@ -139,6 +207,7 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
             c[i * N + j] = C[j * ld + i];
         }
     //print(N,c);
+     */
 
     /*
     const int N = size;
@@ -267,6 +336,7 @@ void Benchmark(const int &size) {
     }
 
     PRINT_TIME(
+
        Gemm(size, a, b, c);
     );
     
