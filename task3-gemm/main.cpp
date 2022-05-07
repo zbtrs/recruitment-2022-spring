@@ -1,10 +1,15 @@
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <xmmintrin.h>
 #include <cmath>
+#include <emmintrin.h>
+#include <pmmintrin.h>
 #include <chrono>
 #include <vector>
+#include <immintrin.h>
 #include <cassert>
 
 #define PRINT_TIME(code) do { \
@@ -24,7 +29,7 @@ using vec = vector<int>;
 const int scale[] = {256, 512, 1024, 2048};
 const string data_path("./data/");
 
-int A[2049 * 2049],B[2049 * 2049],C[2049 * 2049];
+int A[2048*2048],B[2048*2048],C[2048*2048];
 
 void print(const int &N,vec &c) {
     for (int i = 0; i < N; ++i) {
@@ -35,7 +40,91 @@ void print(const int &N,vec &c) {
     }
 }
 
+void print2(__m128i a,int *B) {
+    int A[10];
+    memset(A,0,sizeof(A));
+    _mm_storeu_si128((__m128i*)A,a);
+    cout << A[0] << " " << A[1] << " " << A[2] << " " << A[3] << endl;
+    cout << B[0] << " " << B[1] << " " << B[2] << " " << B[3] << endl;
+}
+
+void print3(__m128i a,__m128i b,__m128i c) {
+    int A[10],B[10],C[10];
+    memset(A,0,sizeof(A));
+    memset(B,0,sizeof(B));
+    memset(C,0,sizeof(C));
+    _mm_storeu_si128((__m128i*)A,a);
+    _mm_storeu_si128((__m128i*)B,b);
+    _mm_storeu_si128((__m128i*)C,c);
+    for (int i = 0; i <= 3; i++)
+        cout << B[i] << " " << C[i] << " " << A[i] << endl;
+
+}
+
 void Gemm(const int &size, vec &a, vec &b, vec &c) {
+
+    //先转置
+
+    const int N = size;
+    const int ld = N;
+    int len = a.size(),row = 0,coloum = 0;
+    for (int i = 0; i < len; i++) {
+        C[i] = 0;
+        row = i / (int)N;
+        coloum = i % (int)N;
+        A[coloum * ld + row] = a[i];
+        B[coloum * ld + row] = b[i];
+    }
+
+
+
+    for (int i = 0; i < N; i += 4)
+        for (int j = 0; j < N; j += 4) {
+            __m128i c_c0,c_c1,c_c2,c_c3,a_ri,b_vi0,b_vi1,b_vi2,b_vi3;
+            c_c0 = _mm_setzero_si128(),c_c1 = _mm_setzero_si128(),c_c2 = _mm_setzero_si128(),c_c3 = _mm_setzero_si128();
+            int *bi0_p,*bi1_p,*bi2_p,*bi3_p;
+
+            bi0_p = B + j * ld;
+            bi1_p = B + (j + 1) * ld;
+            bi2_p = B + (j + 2) * ld;
+            bi3_p = B + (j + 3) * ld;
+            register int temp,temp1,temp2,temp3;
+            for (int k = 0; k < N; k++) {
+
+                a_ri = _mm_loadu_si128((const __m128i*)A + ((i + k * ld) >> 2));
+                temp = bi0_p[0];
+                b_vi0 = _mm_set_epi32(temp,temp,temp,temp);
+                temp1 = bi1_p[0];
+                b_vi1 = _mm_set_epi32(temp1,temp1,temp1,temp1);
+                temp2 = bi2_p[0];
+                b_vi2 = _mm_set_epi32(temp2,temp2,temp2,temp2);
+                temp3 = bi3_p[0];
+                b_vi3 = _mm_set_epi32(temp3,temp3,temp3,temp3);
+
+                bi0_p++;
+                bi1_p++;
+                bi2_p++;
+                bi3_p++;
+
+                c_c0 = _mm_add_epi32(c_c0,_mm_mullo_epi32(a_ri,b_vi0));
+                c_c1 = _mm_add_epi32(c_c1,_mm_mullo_epi32(a_ri,b_vi1));
+                c_c2 = _mm_add_epi32(c_c2,_mm_mullo_epi32(a_ri,b_vi2));
+                c_c3 = _mm_add_epi32(c_c3,_mm_mullo_epi32(a_ri,b_vi3));
+            }
+            _mm_storeu_si128((__m128i*)C + ((i + j * ld) >> 2),c_c0);
+            _mm_storeu_si128((__m128i*)C + ((i + (j + 1) * ld) >> 2),c_c1);
+            _mm_storeu_si128((__m128i*)C + ((i + (j + 2) * ld) >> 2),c_c2);
+            _mm_storeu_si128((__m128i*)C + ((i + (j + 3) * ld) >> 2),c_c3);
+        }
+
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++) {
+            c[i * N + j] = C[j * ld + i];
+        }
+    //print(N,c);
+
+    /*
+    const int N = size;
     int len = a.size();
     for (int i = 0; i < len; ++i) {
         A[i] = a[i];
@@ -43,9 +132,6 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
         C[i] = 0;
     }
 
-
-    const int N = size;
-    //printf("%d\n",N);
     for (int i = 0; i < N; i += 4)
         for (int j = 0; j < N; j += 4)
         {
@@ -94,7 +180,7 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
         }
     for (int i = 0; i < len; ++i)
         c[i] = C[i];
-
+    */
     //print(size,c);
     //printf("%d\n",c[0]);
     /*
@@ -174,7 +260,7 @@ void Benchmark(const int &size) {
 }
 
 int main() {
-
+    //freopen("1.out","w",stdout);
 
     for(auto size: scale) {
         cout << "Running, dataset: size " << size << endl;
