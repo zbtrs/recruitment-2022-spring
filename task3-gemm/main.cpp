@@ -29,7 +29,7 @@ using vec = vector<int>;
 const int scale[] = {256, 512, 1024, 2048};
 const string data_path("./data/");
 
-int A[2048*2048],B[2048*2048],C[2048*2048];
+int A[2080*2080],B[2080*2080],C[2080*2080];
 
 void print(const int &N,vec &c) {
     for (int i = 0; i < N; ++i) {
@@ -66,7 +66,7 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
     //先转置
 
     const int N = size;
-    const int ld = N;
+    const int ld = N + 16;
     int len = a.size(),row = 0,coloum = 0;
     for (int i = 0; i < len; i++) {
         C[i] = 0;
@@ -92,6 +92,17 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
             for (int k = 0; k < N; k++) {
 
                 a_ri = _mm_loadu_si128((const __m128i*)A + ((i + k * ld) >> 2));
+                /*
+                temp = bi0_p[0];
+                b_vi0 = _mm_set1_epi32(temp);
+                temp1 = bi1_p[0];
+                b_vi1 = _mm_set1_epi32(temp1);
+                temp2 = bi2_p[0];
+                b_vi2 = _mm_set1_epi32(temp2);
+                temp3 = bi3_p[0];
+                b_vi3 = _mm_set1_epi32(temp3);
+                 */
+
                 temp = bi0_p[0];
                 b_vi0 = _mm_set_epi32(temp,temp,temp,temp);
                 temp1 = bi1_p[0];
@@ -101,6 +112,12 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
                 temp3 = bi3_p[0];
                 b_vi3 = _mm_set_epi32(temp3,temp3,temp3,temp3);
 
+                /*
+                b_vi0 = _mm_loadu_si128((const __m128i*)bi0_p);
+                b_vi1 = _mm_loadu_si128((const __m128i*)bi1_p);
+                b_vi2 = _mm_loadu_si128((const __m128i*)bi2_p);
+                b_vi3 = _mm_loadu_si128((const __m128i*)bi3_p);
+                */
                 bi0_p++;
                 bi1_p++;
                 bi2_p++;
