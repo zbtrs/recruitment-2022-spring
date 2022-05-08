@@ -1,6 +1,5 @@
 gemm: main.cpp
-	g++ -msse4.1 -msse2 main.cpp -o gemm -O0 -Wall -std=c++11
-	#g++ main.cpp -o gemm -O0 -Wall -Werror -std=c++11
+	g++ -fopenmp -msse4.1 -msse2 main.cpp -o gemm -O0 -Wall -std=c++11
 
 .PHONY: clean
 clean:

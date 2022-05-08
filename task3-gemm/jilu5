@@ -1,0 +1,16 @@
+Running, dataset: size 256
+time spent: 15556us
+Passed, dataset: size 256
+
+Running, dataset: size 512
+time spent: 121603us
+Passed, dataset: size 512
+
+Running, dataset: size 1024
+time spent: 995970us
+Passed, dataset: size 1024
+
+Running, dataset: size 2048
+time spent: 7.7862e+06us
+Passed, dataset: size 2048
+

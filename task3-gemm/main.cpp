@@ -11,6 +11,7 @@
 #include <vector>
 #include <immintrin.h>
 #include <cassert>
+#include <omp.h>
 
 #define PRINT_TIME(code) do { \
     auto start = system_clock::now(); \
@@ -145,16 +146,7 @@ void cal(int K,int ld,int *A,int *B,int *C) {
         c_c1 = _mm_add_epi32(c_c1,_mm_mullo_epi32(a_ri,b_vi1));
         c_c2 = _mm_add_epi32(c_c2,_mm_mullo_epi32(a_ri,b_vi2));
         c_c3 = _mm_add_epi32(c_c3,_mm_mullo_epi32(a_ri,b_vi3));
-        /*
-        temp = bi0_p[0];
-        b_vi0 = _mm_set_epi32(temp,temp,temp,temp);
-        temp1 = bi1_p[0];
-        b_vi1 = _mm_set_epi32(temp1,temp1,temp1,temp1);
-        temp2 = bi2_p[0];
-        b_vi2 = _mm_set_epi32(temp2,temp2,temp2,temp2);
-        temp3 = bi3_p[0];
-        b_vi3 = _mm_set_epi32(temp3,temp3,temp3,temp3);
-         */
+
     }
     __m128i tempp = _mm_loadu_si128((const __m128i*)C);
     _mm_storeu_si128((__m128i*)C,_mm_add_epi32(c_c0,tempp));
@@ -167,18 +159,19 @@ void cal(int K,int ld,int *A,int *B,int *C) {
 }
 
 void block_packing(int M,int N,int K,int ld,int *A,int *B,int *C,bool should_pack) {
-    for (int j = 0; j < N; j += 4) {
-        if (should_pack)
-         packB(K,ld,B + j * ld,pB + j * K);
-        for (int i = 0; i < M; i += 4) {
-            if (j == 0)
-                packA(K,ld,A + i,pA + i * K);
-            cal(K,ld,pA + i * K,pB + j * K,C + i + j * ld);
+        for (int j = 0; j < N; j += 4) {
+            if (should_pack)
+                packB(K, ld, B + j * ld, pB + j * K);
+            for (int i = 0; i < M; i += 4) {
+                if (j == 0)
+                    packA(K, ld, A + i, pA + i * K);
+                cal(K, ld, pA + i * K, pB + j * K, C + i + j * ld);
+            }
         }
-    }
 }
 
 void do_block(int M,int N,int K,int ld,int *A,int *B,int *C) {
+#pragma omp parallel for
     for (int i = 0; i < M; i += 4)
         for (int j = 0; j < N; j += 4) {
             __m128i c_c0,c_c1,c_c2,c_c3,a_ri,b_vi0,b_vi1,b_vi2,b_vi3;
@@ -246,10 +239,11 @@ void Gemm(const int &size, vec &a, vec &b, vec &c) {
         int K = min(N - k,KC);
         for (int i = 0; i < N; i += MC) {
             int M = min(N - i,MC);
-            //do_block(M,N,K,ld,A + i + k * ld,B + k,C + i);
-            block_packing(M,N,K,ld,A + i + k * ld,B + k,C + i,i == 0);
+            do_block(M,N,K,ld,A + i + k * ld,B + k,C + i);
+            //block_packing(M,N,K,ld,A + i + k * ld,B + k,C + i,i == 0);
         }
     }
+
     for (int i = 0; i < N; i++)
         for (int j = 0; j < N; j++) {
             c[i * N + j] = C[j * ld + i];
@@ -456,6 +450,7 @@ void Benchmark(const int &size) {
 
 int main() {
     //freopen("1.out","w",stdout);
+
 
     for(auto size: scale) {
         cout << "Running, dataset: size " << size << endl;
